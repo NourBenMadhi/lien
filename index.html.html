@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informatique Quiz</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Informatique Quiz</h1>
+    <div class="meta">10 questions</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Question 1</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Quel est le rôle fondamental d'un système d'exploitation (OS) dans un ordinateur ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Pensez au pont logiciel essentiel qui permet d'exploiter les composants physiques de l'ordinateur.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="Le système d'exploitation gère les ressources matérielles et fournit une interface permettant d'interagir facilement avec la machine.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Assurer l'intermédiaire entre l'utilisateur, les applications et le matériel informatique.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le système d'exploitation gère les ressources matérielles et fournit une interface permettant d'interagir facilement avec la machine.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Ce rôle spécifique d'affichage et de calcul graphique est attribué à la carte graphique (GPU) et non au système d'exploitation.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Générer les graphismes complexes et les images pour les jeux vidéo.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Ce rôle spécifique d'affichage et de calcul graphique est attribué à la carte graphique (GPU) et non au système d'exploitation.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La conservation physique des données est assurée par des composants de stockage permanent comme le disque dur ou le SSD.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Conserver définitivement les fichiers système même en l'absence totale d'électricité.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La conservation physique des données est assurée par des composants de stockage permanent comme le disque dur ou le SSD.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La transformation de l'énergie électrique est la fonction du bloc d'alimentation.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Convertir le courant alternatif de la prise murale en courant continu.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La transformation de l'énergie électrique est la fonction du bloc d'alimentation.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Question 2</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Quelle est la caractéristique principale de la mémoire vive (RAM) ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Pensez à ce qui arrive aux documents non enregistrés lors d'une coupure de courant soudaine.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Les plateaux magnétiques en rotation caractérisent la technologie des disques durs classiques (HDD).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Elle est constituée de plateaux magnétiques tournant à grande vitesse.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Les plateaux magnétiques en rotation caractérisent la technologie des disques durs classiques (HDD).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="La RAM offre un stockage temporaire ultra-rapide pour les programmes en cours d'exécution, mais nécessite du courant pour maintenir les données.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Elle est volatile et son contenu s'efface dès que l'ordinateur est éteint.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La RAM offre un stockage temporaire ultra-rapide pour les programmes en cours d'exécution, mais nécessite du courant pour maintenir les données.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Le stockage permanent à long terme est pris en charge par le disque dur ou le SSD.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Elle stocke de façon permanente le système d'exploitation et les documents personnels.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le stockage permanent à long terme est pris en charge par le disque dur ou le SSD.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La gestion et la distribution de l'électricité dépendent exclusivement du bloc d'alimentation.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Elle prend directement en charge la conversion électrique des composants.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestion et la distribution de l'électricité dépendent exclusivement du bloc d'alimentation.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Question 3</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Pourquoi le processeur (CPU) s'appuie-t-il sur plusieurs cœurs (cores) ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considérez la façon dont le travail lourd de calcul peut être réparti entre plusieurs unités.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Le processeur possède une mémoire interne très limitée et ne sert pas de support de stockage de masse.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Pour stocker durablement les photos et vidéos de l'utilisateur.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le processeur possède une mémoire interne très limitée et ne sert pas de support de stockage de masse.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La gestion du courant électrique relève des fonctions du bloc d'alimentation.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Pour convertir le signal électrique alternatif du secteur en signal continu.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La gestion du courant électrique relève des fonctions du bloc d'alimentation.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Chaque cœur forme une unité de calcul autonome, permettant au processeur d'exécuter plusieurs tâches sans ralentissement.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Pour traiter plusieurs instructions et calculs simultanément en parallèle.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Chaque cœur forme une unité de calcul autonome, permettant au processeur d'exécuter plusieurs tâches sans ralentissement.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Même doté de plusieurs cœurs, le processeur requiert toujours la RAM pour stocker temporairement les données de travail.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Pour remplacer totalement le besoin d'une mémoire vive externe.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Même doté de plusieurs cœurs, le processeur requiert toujours la RAM pour stocker temporairement les données de travail.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Question 4</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Quelle est la différence technique majeure entre un disque dur classique (HDD) et un disque SSD ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Portez votre attention sur la présence ou l'absence d'éléments mécaniques en mouvement.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="L'absence de pièces mécaniques dans le SSD permet un accès quasi immédiat aux informations contrairement à la mécanique du HDD.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Le SSD conserve les données sur des puces de mémoire flash sans pièces mécaniques mobiles.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">L'absence de pièces mécaniques dans le SSD permet un accès quasi immédiat aux informations contrairement à la mécanique du HDD.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Le HDD se relie à la carte mère pour le stockage de données et non à l'interface réseau sans fil.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Le HDD s'installe directement sur les connecteurs réseau de l'ordinateur.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le HDD se relie à la carte mère pour le stockage de données et non à l'interface réseau sans fil.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Les deux technologies sont des mémoires non volatiles capables de conserver les données hors tension.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Le HDD ne perd pas ses données à l'extinction, tandis que le SSD s'efface complètement.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Les deux technologies sont des mémoires non volatiles capables de conserver les données hors tension.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Le SSD est un composant de stockage de masse permanent, au même titre que le disque dur.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Le SSD sert uniquement de mémoire vive à court terme pour le processeur.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le SSD est un composant de stockage de masse permanent, au même titre que le disque dur.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Question 5</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Quel composant de l'unité centrale sert de socle de connexion pour tous les autres éléments ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Pensez au circuit imprimé principal comparé au réseau routier de la machine.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="La carte mère abrite les pistes de cuivre et les connecteurs permettant à l'ensemble des composants internes et périphériques de communiquer.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La carte mère.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La carte mère abrite les pistes de cuivre et les connecteurs permettant à l'ensemble des composants internes et périphériques de communiquer.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Le processeur s'installe sur la carte mère, qui lui permet de communiquer avec la RAM et le stockage.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Le processeur.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le processeur s'installe sur la carte mère, qui lui permet de communiquer avec la RAM et le stockage.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Bien qu'il alimente tous les éléments, le bloc d'alimentation ne gère pas l'échange d'informations et d'instructions.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Le bloc d'alimentation.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Bien qu'il alimente tous les éléments, le bloc d'alimentation ne gère pas l'échange d'informations et d'instructions.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="La carte graphique s'insère sur la carte mère pour gérer la partie visuelle et d'affichage.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">La carte graphique.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La carte graphique s'insère sur la carte mère pour gérer la partie visuelle et d'affichage.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Question 6</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Sur l'interface du bureau de Windows, à quoi sert la barre des tâches ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Observez la bande située généralement en bas de l'écran qui liste vos logiciels ouverts.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="L'image décorative constitue l'arrière-plan du bureau et non la barre des tâches.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">À héberger uniquement l'image de fond d'écran sélectionnée par l'utilisateur.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">L'image décorative constitue l'arrière-plan du bureau et non la barre des tâches.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La vérification du matériel au démarrage est réalisée par le logiciel BIOS/UEFI.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">À exécuter la vérification matérielle du processeur au démarrage.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La vérification du matériel au démarrage est réalisée par le logiciel BIOS/UEFI.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="La mémoire vive est un composant matériel physique et non un élément d'interface graphique.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">À stocker la mémoire vive nécessaire au bon fonctionnement de la machine.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La mémoire vive est un composant matériel physique et non un élément d'interface graphique.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="La barre des tâches offre une vue constante sur les applications ouvertes et facilite la navigation entre elles.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">À afficher les programmes et fenêtres actuellement en cours d'utilisation.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La barre des tâches offre une vue constante sur les applications ouvertes et facilite la navigation entre elles.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Question 7</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Que se produit-il si un ordinateur démarre sans système d'exploitation installé ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Pensez au blocage de l'ordinateur face à une disquette ou un disque non système au démarrage.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="La carte graphique se limite à afficher les signaux reçus et ne peut produire un OS.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">La carte graphique génère un système d'exploitation temporaire.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La carte graphique se limite à afficher les signaux reçus et ne peut produire un OS.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="L'accès au réseau requiert des pilotes et des configurations gérés par le système d'exploitation.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">L'ordinateur se connecte automatiquement au réseau sans fil pour télécharger la RAM.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">L'accès au réseau requiert des pilotes et des configurations gérés par le système d'exploitation.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Sans les instructions de base d'un système d'exploitation, le matériel sous tension ne sait pas quelle tâche exécuter.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Un message d'erreur indique l'absence de système et la machine reste inexploitable.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Sans les instructions de base d'un système d'exploitation, le matériel sous tension ne sait pas quelle tâche exécuter.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Le bureau de Windows est fourni par le système d'exploitation lui-même, il ne peut donc pas apparaître en son absence.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Le bureau de Windows s'ouvre directement mais en mode texte.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le bureau de Windows est fourni par le système d'exploitation lui-même, il ne peut donc pas apparaître en son absence.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Question 8</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Quelle est la fonction combinée du radiateur et du ventilateur placés au-dessus du processeur ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Considérez l'effet secondaire majeur causé par l'activité électrique intense du processeur.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="L'apport d'énergie électrique est géré uniquement par le bloc d'alimentation.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Fournir du courant continu supplémentaire en cas de forte charge de calcul.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">L'apport d'énergie électrique est géré uniquement par le bloc d'alimentation.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La capacité de stockage dépend des plateaux magnétiques ou des puces flash du disque, sans rapport avec le système de refroidissement.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Augmenter la capacité de stockage du disque dur interne.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La capacité de stockage dépend des plateaux magnétiques ou des puces flash du disque, sans rapport avec le système de refroidissement.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Le processeur chauffe fortement lors des calculs ; le radiateur extrait cette chaleur et le ventilateur l'éjecte du boîtier.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Absorber et expulser la chaleur produite par le processeur pour prévenir sa détérioration.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le processeur chauffe fortement lors des calculs ; le radiateur extrait cette chaleur et le ventilateur l'éjecte du boîtier.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Le mécanisme de refroidissement agit sur la température et non sur la gestion mémoire de la RAM.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Nettoyer automatiquement les puces de mémoire vive volatile.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le mécanisme de refroidissement agit sur la température et non sur la gestion mémoire de la RAM.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Question 9</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Quel est le rôle du bloc d'alimentation dans une unité centrale ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Pensez à la transformation de l'énergie électrique brute en provenance de la prise murale.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Le calcul des images et pixels est dédié au GPU (processeur graphique).">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Calculer l'affichage des pixels pour les logiciels de modélisation 3D.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le calcul des images et pixels est dédié au GPU (processeur graphique).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La coordination du trafic d'informations est gérée par la carte mère et le chipset.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Coordonner les échanges d'informations entre les cartes d'extension.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La coordination du trafic d'informations est gérée par la carte mère et le chipset.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Le bloc d'alimentation transforme le courant domestique pour distribuer à chaque composant interne l'énergie nécessaire.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Convertir le courant alternatif du secteur en tensions continues stables et appropriées.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le bloc d'alimentation transforme le courant domestique pour distribuer à chaque composant interne l'énergie nécessaire.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="L'organisation et le stockage des fichiers dépendent du système de fichiers sur le disque dur ou SSD.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Sauvegarder les fichiers et dossiers sous forme d'arborescence.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">L'organisation et le stockage des fichiers dépendent du système de fichiers sur le disque dur ou SSD.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Question 10</span>
+            <span class="q-of">/ 10</span>
+          </div>
+          <div class="q-text">Selon les directives pédagogiques officielles du programme, comment doit s'effectuer la comparaison des performances du matériel informatique ?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Rappelez-vous les pistes pédagogiques suggérées quant à l'usage ou non de calculs et de conversions d'unités.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Le document spécifie explicitement d'éviter le recours aux conversions d'unités à ce niveau d'apprentissage.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Par la réalisation systématique de conversions mathématiques d'octets.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Le document spécifie explicitement d'éviter le recours aux conversions d'unités à ce niveau d'apprentissage.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="La comparaison porte sur les caractéristiques fonctionnelles (RAM, stockage, fréquence) et non sur la mesure physique des puces.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">En démontant intégralement la carte mère et le processeur pour mesurer leurs dimensions.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">La comparaison porte sur les caractéristiques fonctionnelles (RAM, stockage, fréquence) et non sur la mesure physique des puces.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="Les recommandations précisent que l'évaluation des performances doit rester qualitative pour la compréhension globale de l'élève.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">De manière qualitative, sans recourir à des calculs ou des conversions d'unités de mesure.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Les recommandations précisent que l'évaluation des performances doit rester qualitative pour la compréhension globale de l'élève.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="L'objectif est d'identifier et comparer qualitativement le matériel, sans limitation à des commandes mobiles avancées.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">En utilisant uniquement des lignes de commande sous un système d'exploitation mobile.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">L'objectif est d'identifier et comparer qualitativement le matériel, sans limitation à des commandes mobiles avancées.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>Quiz Complete!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Try Again</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"Quel est le rôle fondamental d'un système d'exploitation (OS) dans un ordinateur ?","hint":"Pensez au pont logiciel essentiel qui permet d'exploiter les composants physiques de l'ordinateur.","options":[{"label":"A","text":"Assurer l'intermédiaire entre l'utilisateur, les applications et le matériel informatique.","isCorrect":true,"rationale":"Le système d'exploitation gère les ressources matérielles et fournit une interface permettant d'interagir facilement avec la machine."},{"label":"B","text":"Générer les graphismes complexes et les images pour les jeux vidéo.","isCorrect":false,"rationale":"Ce rôle spécifique d'affichage et de calcul graphique est attribué à la carte graphique (GPU) et non au système d'exploitation."},{"label":"C","text":"Conserver définitivement les fichiers système même en l'absence totale d'électricité.","isCorrect":false,"rationale":"La conservation physique des données est assurée par des composants de stockage permanent comme le disque dur ou le SSD."},{"label":"D","text":"Convertir le courant alternatif de la prise murale en courant continu.","isCorrect":false,"rationale":"La transformation de l'énergie électrique est la fonction du bloc d'alimentation."}]},{"question":"Quelle est la caractéristique principale de la mémoire vive (RAM) ?","hint":"Pensez à ce qui arrive aux documents non enregistrés lors d'une coupure de courant soudaine.","options":[{"label":"A","text":"Elle est constituée de plateaux magnétiques tournant à grande vitesse.","isCorrect":false,"rationale":"Les plateaux magnétiques en rotation caractérisent la technologie des disques durs classiques (HDD)."},{"label":"B","text":"Elle est volatile et son contenu s'efface dès que l'ordinateur est éteint.","isCorrect":true,"rationale":"La RAM offre un stockage temporaire ultra-rapide pour les programmes en cours d'exécution, mais nécessite du courant pour maintenir les données."},{"label":"C","text":"Elle stocke de façon permanente le système d'exploitation et les documents personnels.","isCorrect":false,"rationale":"Le stockage permanent à long terme est pris en charge par le disque dur ou le SSD."},{"label":"D","text":"Elle prend directement en charge la conversion électrique des composants.","isCorrect":false,"rationale":"La gestion et la distribution de l'électricité dépendent exclusivement du bloc d'alimentation."}]},{"question":"Pourquoi le processeur (CPU) s'appuie-t-il sur plusieurs cœurs (cores) ?","hint":"Considérez la façon dont le travail lourd de calcul peut être réparti entre plusieurs unités.","options":[{"label":"A","text":"Pour stocker durablement les photos et vidéos de l'utilisateur.","isCorrect":false,"rationale":"Le processeur possède une mémoire interne très limitée et ne sert pas de support de stockage de masse."},{"label":"B","text":"Pour convertir le signal électrique alternatif du secteur en signal continu.","isCorrect":false,"rationale":"La gestion du courant électrique relève des fonctions du bloc d'alimentation."},{"label":"C","text":"Pour traiter plusieurs instructions et calculs simultanément en parallèle.","isCorrect":true,"rationale":"Chaque cœur forme une unité de calcul autonome, permettant au processeur d'exécuter plusieurs tâches sans ralentissement."},{"label":"D","text":"Pour remplacer totalement le besoin d'une mémoire vive externe.","isCorrect":false,"rationale":"Même doté de plusieurs cœurs, le processeur requiert toujours la RAM pour stocker temporairement les données de travail."}]},{"question":"Quelle est la différence technique majeure entre un disque dur classique (HDD) et un disque SSD ?","hint":"Portez votre attention sur la présence ou l'absence d'éléments mécaniques en mouvement.","options":[{"label":"A","text":"Le SSD conserve les données sur des puces de mémoire flash sans pièces mécaniques mobiles.","isCorrect":true,"rationale":"L'absence de pièces mécaniques dans le SSD permet un accès quasi immédiat aux informations contrairement à la mécanique du HDD."},{"label":"B","text":"Le HDD s'installe directement sur les connecteurs réseau de l'ordinateur.","isCorrect":false,"rationale":"Le HDD se relie à la carte mère pour le stockage de données et non à l'interface réseau sans fil."},{"label":"C","text":"Le HDD ne perd pas ses données à l'extinction, tandis que le SSD s'efface complètement.","isCorrect":false,"rationale":"Les deux technologies sont des mémoires non volatiles capables de conserver les données hors tension."},{"label":"D","text":"Le SSD sert uniquement de mémoire vive à court terme pour le processeur.","isCorrect":false,"rationale":"Le SSD est un composant de stockage de masse permanent, au même titre que le disque dur."}]},{"question":"Quel composant de l'unité centrale sert de socle de connexion pour tous les autres éléments ?","hint":"Pensez au circuit imprimé principal comparé au réseau routier de la machine.","options":[{"label":"A","text":"La carte mère.","isCorrect":true,"rationale":"La carte mère abrite les pistes de cuivre et les connecteurs permettant à l'ensemble des composants internes et périphériques de communiquer."},{"label":"B","text":"Le processeur.","isCorrect":false,"rationale":"Le processeur s'installe sur la carte mère, qui lui permet de communiquer avec la RAM et le stockage."},{"label":"C","text":"Le bloc d'alimentation.","isCorrect":false,"rationale":"Bien qu'il alimente tous les éléments, le bloc d'alimentation ne gère pas l'échange d'informations et d'instructions."},{"label":"D","text":"La carte graphique.","isCorrect":false,"rationale":"La carte graphique s'insère sur la carte mère pour gérer la partie visuelle et d'affichage."}]},{"question":"Sur l'interface du bureau de Windows, à quoi sert la barre des tâches ?","hint":"Observez la bande située généralement en bas de l'écran qui liste vos logiciels ouverts.","options":[{"label":"A","text":"À héberger uniquement l'image de fond d'écran sélectionnée par l'utilisateur.","isCorrect":false,"rationale":"L'image décorative constitue l'arrière-plan du bureau et non la barre des tâches."},{"label":"B","text":"À exécuter la vérification matérielle du processeur au démarrage.","isCorrect":false,"rationale":"La vérification du matériel au démarrage est réalisée par le logiciel BIOS/UEFI."},{"label":"C","text":"À stocker la mémoire vive nécessaire au bon fonctionnement de la machine.","isCorrect":false,"rationale":"La mémoire vive est un composant matériel physique et non un élément d'interface graphique."},{"label":"D","text":"À afficher les programmes et fenêtres actuellement en cours d'utilisation.","isCorrect":true,"rationale":"La barre des tâches offre une vue constante sur les applications ouvertes et facilite la navigation entre elles."}]},{"question":"Que se produit-il si un ordinateur démarre sans système d'exploitation installé ?","hint":"Pensez au blocage de l'ordinateur face à une disquette ou un disque non système au démarrage.","options":[{"label":"A","text":"La carte graphique génère un système d'exploitation temporaire.","isCorrect":false,"rationale":"La carte graphique se limite à afficher les signaux reçus et ne peut produire un OS."},{"label":"B","text":"L'ordinateur se connecte automatiquement au réseau sans fil pour télécharger la RAM.","isCorrect":false,"rationale":"L'accès au réseau requiert des pilotes et des configurations gérés par le système d'exploitation."},{"label":"C","text":"Un message d'erreur indique l'absence de système et la machine reste inexploitable.","isCorrect":true,"rationale":"Sans les instructions de base d'un système d'exploitation, le matériel sous tension ne sait pas quelle tâche exécuter."},{"label":"D","text":"Le bureau de Windows s'ouvre directement mais en mode texte.","isCorrect":false,"rationale":"Le bureau de Windows est fourni par le système d'exploitation lui-même, il ne peut donc pas apparaître en son absence."}]},{"question":"Quelle est la fonction combinée du radiateur et du ventilateur placés au-dessus du processeur ?","hint":"Considérez l'effet secondaire majeur causé par l'activité électrique intense du processeur.","options":[{"label":"A","text":"Fournir du courant continu supplémentaire en cas de forte charge de calcul.","isCorrect":false,"rationale":"L'apport d'énergie électrique est géré uniquement par le bloc d'alimentation."},{"label":"B","text":"Augmenter la capacité de stockage du disque dur interne.","isCorrect":false,"rationale":"La capacité de stockage dépend des plateaux magnétiques ou des puces flash du disque, sans rapport avec le système de refroidissement."},{"label":"C","text":"Absorber et expulser la chaleur produite par le processeur pour prévenir sa détérioration.","isCorrect":true,"rationale":"Le processeur chauffe fortement lors des calculs ; le radiateur extrait cette chaleur et le ventilateur l'éjecte du boîtier."},{"label":"D","text":"Nettoyer automatiquement les puces de mémoire vive volatile.","isCorrect":false,"rationale":"Le mécanisme de refroidissement agit sur la température et non sur la gestion mémoire de la RAM."}]},{"question":"Quel est le rôle du bloc d'alimentation dans une unité centrale ?","hint":"Pensez à la transformation de l'énergie électrique brute en provenance de la prise murale.","options":[{"label":"A","text":"Calculer l'affichage des pixels pour les logiciels de modélisation 3D.","isCorrect":false,"rationale":"Le calcul des images et pixels est dédié au GPU (processeur graphique)."},{"label":"B","text":"Coordonner les échanges d'informations entre les cartes d'extension.","isCorrect":false,"rationale":"La coordination du trafic d'informations est gérée par la carte mère et le chipset."},{"label":"C","text":"Convertir le courant alternatif du secteur en tensions continues stables et appropriées.","isCorrect":true,"rationale":"Le bloc d'alimentation transforme le courant domestique pour distribuer à chaque composant interne l'énergie nécessaire."},{"label":"D","text":"Sauvegarder les fichiers et dossiers sous forme d'arborescence.","isCorrect":false,"rationale":"L'organisation et le stockage des fichiers dépendent du système de fichiers sur le disque dur ou SSD."}]},{"question":"Selon les directives pédagogiques officielles du programme, comment doit s'effectuer la comparaison des performances du matériel informatique ?","hint":"Rappelez-vous les pistes pédagogiques suggérées quant à l'usage ou non de calculs et de conversions d'unités.","options":[{"label":"A","text":"Par la réalisation systématique de conversions mathématiques d'octets.","isCorrect":false,"rationale":"Le document spécifie explicitement d'éviter le recours aux conversions d'unités à ce niveau d'apprentissage."},{"label":"B","text":"En démontant intégralement la carte mère et le processeur pour mesurer leurs dimensions.","isCorrect":false,"rationale":"La comparaison porte sur les caractéristiques fonctionnelles (RAM, stockage, fréquence) et non sur la mesure physique des puces."},{"label":"C","text":"De manière qualitative, sans recourir à des calculs ou des conversions d'unités de mesure.","isCorrect":true,"rationale":"Les recommandations précisent que l'évaluation des performances doit rester qualitative pour la compréhension globale de l'élève."},{"label":"D","text":"En utilisant uniquement des lignes de commande sous un système d'exploitation mobile.","isCorrect":false,"rationale":"L'objectif est d'identifier et comparer qualitativement le matériel, sans limitation à des commandes mobiles avancées."}]}];
+const tr = {"correct":"Correct!","incorrect":"Incorrect","next":"Next Question →","seeResults":"See Results","complete":"Quiz Complete!","scoreText":"You got {correct} out of {total} correct","tryAgain":"Try Again","rightAnswer":"Right answer","notQuite":"Not quite"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
